@@ -1,4 +1,10 @@
+
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+final MethodChannel appGroupMethodChannel = MethodChannel('dk.miracle.flutter-native-widget-hackday-2021.appGroup');
 
 void main() {
   runApp(MyApp());
@@ -52,7 +58,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
 
-  void _incrementCounter() {
+  void _incrementCounter() async {
     setState(() {
       // This call to setState tells the Flutter framework that something has
       // changed in this State, which causes it to rerun the build method below
@@ -61,6 +67,12 @@ class _MyHomePageState extends State<MyHomePage> {
       // called again, and so nothing would appear to happen.
       _counter++;
     });
+    final appGroupDir = await appGroupMethodChannel.invokeMethod<String>('getAppGroupDir', 'group.dk.miracle.flutter-native-widget-hackday-2021');
+    final file = File('$appGroupDir/counter.json');
+    
+    await file.writeAsString('{"counter": $_counter}');
+
+    await appGroupMethodChannel.invokeMethod('reloadAllTimelines');
   }
 
   @override

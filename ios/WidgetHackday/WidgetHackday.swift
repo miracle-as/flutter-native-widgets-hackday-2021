@@ -61,7 +61,8 @@ struct WidgetHackdayEntryView : View {
             Text(entry.date, style: .time)
             Text("\(entry.counter.counter)")
         }
-        
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.red)
     }
 }
 
