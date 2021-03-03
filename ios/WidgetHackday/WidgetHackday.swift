@@ -10,11 +10,11 @@ import SwiftUI
 
 struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), counter: CounterDTO(counter: 0))
+        SimpleEntry(date: Date(), counter: CounterDTO(counter: 0), imagePath: nil)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
-        let entry = SimpleEntry(date: Date(), counter: CounterDTO(counter: 0))
+        let entry = SimpleEntry(date: Date(), counter: CounterDTO(counter: 0), imagePath: nil)
         completion(entry)
     }
 
@@ -24,6 +24,7 @@ struct Provider: TimelineProvider {
         let dir = FileManager.default
                 .containerURL(forSecurityApplicationGroupIdentifier: "group.dk.miracle.flutter-native-widget-hackday-2021")!
         let filePath = dir.appendingPathComponent("counter.json")
+        let imageFilePath = dir.appendingPathComponent("counter.png")
         
         let data = try! Data(contentsOf: filePath)
         
@@ -33,7 +34,7 @@ struct Provider: TimelineProvider {
         let currentDate = Date()
         for hourOffset in 0 ..< 5 {
             let entryDate = Calendar.current.date(byAdding: .hour, value: hourOffset, to: currentDate)!
-            let entry = SimpleEntry(date: entryDate, counter: counterDTO)
+            let entry = SimpleEntry(date: entryDate, counter: counterDTO, imagePath: imageFilePath.path)
             entries.append(entry)
         }
 
@@ -49,6 +50,7 @@ struct CounterDTO: Codable {
 struct SimpleEntry: TimelineEntry {
     let date: Date
     let counter: CounterDTO
+    let imagePath: String?
     
 //    let counter: Int
 }
@@ -60,6 +62,9 @@ struct WidgetHackdayEntryView : View {
         VStack {
             Text(entry.date, style: .time)
             Text("\(entry.counter.counter)")
+            if let imagePath = entry.imagePath {
+                Image(uiImage: UIImage(contentsOfFile: imagePath)!)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.red)
@@ -81,7 +86,7 @@ struct WidgetHackday: Widget {
 
 struct WidgetHackday_Previews: PreviewProvider {
     static var previews: some View {
-        WidgetHackdayEntryView(entry: SimpleEntry(date: Date(), counter: CounterDTO(counter: 0)))
+        WidgetHackdayEntryView(entry: SimpleEntry(date: Date(), counter: CounterDTO(counter: 0), imagePath: nil))
             .previewContext(WidgetPreviewContext(family: .systemSmall))
     }
 }

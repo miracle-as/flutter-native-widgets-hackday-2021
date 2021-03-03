@@ -1,7 +1,12 @@
 
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 final MethodChannel appGroupMethodChannel = MethodChannel('dk.miracle.flutter-native-widget-hackday-2021.appGroup');
@@ -57,6 +62,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  GlobalKey counterKey = GlobalKey();
 
   void _incrementCounter() async {
     setState(() {
@@ -67,11 +73,26 @@ class _MyHomePageState extends State<MyHomePage> {
       // called again, and so nothing would appear to happen.
       _counter++;
     });
+
+    SchedulerBinding.instance.addPostFrameCallback((timeStamp) { 
+      _updateNativeWidget();
+    });
+  }
+
+  Future _updateNativeWidget() async {
+    final renderObject = counterKey.currentContext.findRenderObject() as RenderRepaintBoundary;
+    final image = await renderObject.toImage(pixelRatio: 3.0);
+    ByteData byteData = await image.toByteData(format: ImageByteFormat.png);
+    Uint8List pngBytes = byteData.buffer.asUint8List();
+    // String bs64 = base64Encode(pngBytes);
+    
     final appGroupDir = await appGroupMethodChannel.invokeMethod<String>('getAppGroupDir', 'group.dk.miracle.flutter-native-widget-hackday-2021');
     final file = File('$appGroupDir/counter.json');
+    final imageFile = File('$appGroupDir/counter@3x.png');
     
     await file.writeAsString('{"counter": $_counter}');
-
+    await imageFile.writeAsBytes(pngBytes);
+    
     await appGroupMethodChannel.invokeMethod('reloadAllTimelines');
   }
 
@@ -112,10 +133,8 @@ class _MyHomePageState extends State<MyHomePage> {
             Text(
               'You have pushed the button this many times:',
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
+
+            CounterWidget(repaintBoundaryKey: counterKey, counter: _counter),
           ],
         ),
       ),
@@ -124,6 +143,30 @@ class _MyHomePageState extends State<MyHomePage> {
         tooltip: 'Increment',
         child: Icon(Icons.add),
       ), // This trailing comma makes auto-formatting nicer for build methods.
+    );
+  }
+
+
+}
+
+class CounterWidget extends StatelessWidget {
+  const CounterWidget({
+    Key key,
+    @required this.repaintBoundaryKey,
+    @required int counter,
+  }) : _counter = counter, super(key: key);
+
+  final int _counter;
+  final Key repaintBoundaryKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      key: repaintBoundaryKey,
+      child: Text(
+        '$_counter',
+        style: Theme.of(context).textTheme.headline4,
+      ),
     );
   }
 }
