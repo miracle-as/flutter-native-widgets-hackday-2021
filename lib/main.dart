@@ -1,5 +1,3 @@
-
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui';
@@ -8,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 
-final MethodChannel appGroupMethodChannel = MethodChannel('dk.miracle.flutter-native-widget-hackday-2021.appGroup');
+final MethodChannel appGroupMethodChannel =
+    MethodChannel('dk.miracle.flutter-native-widget-hackday-2021.appGroup');
 
 void main() {
   runApp(MyApp());
@@ -74,25 +74,48 @@ class _MyHomePageState extends State<MyHomePage> {
       _counter++;
     });
 
-    SchedulerBinding.instance.addPostFrameCallback((timeStamp) { 
-      _updateNativeWidget();
+    SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+      if (Platform.isIOS) {
+        _updateiOSNativeWidget();
+        return;
+      } else {
+        _updateAndroidNativeWidget();
+      }
     });
   }
 
-  Future _updateNativeWidget() async {
-    final renderObject = counterKey.currentContext.findRenderObject() as RenderRepaintBoundary;
+  Future<void> _updateiOSNativeWidget() async {
+    final renderObject =
+        counterKey.currentContext.findRenderObject() as RenderRepaintBoundary;
     final image = await renderObject.toImage(pixelRatio: 3.0);
     ByteData byteData = await image.toByteData(format: ImageByteFormat.png);
     Uint8List pngBytes = byteData.buffer.asUint8List();
     // String bs64 = base64Encode(pngBytes);
-    
-    final appGroupDir = await appGroupMethodChannel.invokeMethod<String>('getAppGroupDir', 'group.dk.miracle.flutter-native-widget-hackday-2021');
+
+    final appGroupDir = await appGroupMethodChannel.invokeMethod<String>(
+        'getAppGroupDir',
+        'group.dk.miracle.flutter-native-widget-hackday-2021');
     final file = File('$appGroupDir/counter.json');
     final imageFile = File('$appGroupDir/counter@3x.png');
-    
+
     await file.writeAsString('{"counter": $_counter}');
     await imageFile.writeAsBytes(pngBytes);
-    
+
+    await appGroupMethodChannel.invokeMethod('reloadAllTimelines');
+  }
+
+  Future<void> _updateAndroidNativeWidget() async {
+    final renderObject =
+        counterKey.currentContext.findRenderObject() as RenderRepaintBoundary;
+    final image = await renderObject.toImage(pixelRatio: 3.0);
+    ByteData byteData = await image.toByteData(format: ImageByteFormat.png);
+    Uint8List pngBytes = byteData.buffer.asUint8List();
+
+    final documentsDirectory = await getApplicationDocumentsDirectory();
+    final imageFile = File('${documentsDirectory.path}/counter.png');
+
+    await imageFile.writeAsBytes(pngBytes);
+
     await appGroupMethodChannel.invokeMethod('reloadAllTimelines');
   }
 
@@ -133,7 +156,6 @@ class _MyHomePageState extends State<MyHomePage> {
             Text(
               'You have pushed the button this many times:',
             ),
-
             CounterWidget(repaintBoundaryKey: counterKey, counter: _counter),
           ],
         ),
@@ -145,8 +167,6 @@ class _MyHomePageState extends State<MyHomePage> {
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
-
-
 }
 
 class CounterWidget extends StatelessWidget {
@@ -154,7 +174,8 @@ class CounterWidget extends StatelessWidget {
     Key key,
     @required this.repaintBoundaryKey,
     @required int counter,
-  }) : _counter = counter, super(key: key);
+  })  : _counter = counter,
+        super(key: key);
 
   final int _counter;
   final Key repaintBoundaryKey;
